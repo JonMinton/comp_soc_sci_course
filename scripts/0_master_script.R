@@ -42,10 +42,10 @@ pacman::p_load(
 
 # 1) Load and tidy raw data  ----------------------------------------------
 
-# 1.1 HFD harvesting (Once)
-source("scripts/1_1_harvest_hfd.R")
-# 1.2 HMD harvesting (Once)
-source("scripts/1_2_harvest_hmd.R")
+# # 1.1 HFD harvesting (Once)
+# source("scripts/1_1_harvest_hfd.R")
+# # 1.2 HMD harvesting (Once)
+# source("scripts/1_2_harvest_hmd.R")
 
 
 
@@ -131,8 +131,8 @@ dta_hmd %>%
     deaths = sum(deaths),
     exposure = sum(exposure)
   ) %>% 
-  mutate(imr = deaths / exposure ) %>% 
-  ggplot(., aes(x = year, y = imr)) + 
+  mutate(mr = deaths / exposure ) %>% 
+  ggplot(., aes(x = year, y = mr)) + 
   geom_line() + 
   scale_y_log10() 
 
@@ -146,8 +146,8 @@ dta_hmd %>%
     deaths = sum(deaths),
     exposure = sum(exposure)
   ) %>% 
-  mutate(imr = deaths / exposure ) %>% 
-  ggplot(., aes(x = year, y = imr, group = sex, linetype = sex)) + 
+  mutate(mr = deaths / exposure ) %>% 
+  ggplot(., aes(x = year, y = mr, group = sex, linetype = sex)) + 
   geom_line() + 
   scale_y_log10() 
 
@@ -161,10 +161,111 @@ dta_hmd %>%
     deaths = sum(deaths),
     exposure = sum(exposure)
   ) %>% 
-  mutate(imr = deaths / exposure ) %>%
+  mutate(mr = deaths / exposure ) %>%
   select(-deaths, -exposure) %>% 
-  spread(sex, imr) %>% 
+  spread(sex, mr) %>% 
   mutate(ratio = male / female) %>% 
   ggplot(., aes(x = year, y = ratio)) + 
   geom_line() 
   
+
+# less crude approach to doing the above 
+
+dta_hmd %>% 
+  filter(age >=15, age <=30) %>% 
+  filter(!(country_code %in% c("DEUTNP", "CARTNP", "GBR_NP", "GBRTENW", "NZL_MA", "NZL_NM"))) %>% 
+  mutate(mr = deaths / exposure ) %>%
+  filter(!is.na(mr)) %>% 
+  select(-deaths,-population, -exposure) %>%
+  group_by(country_code, year, age) %>% 
+  spread(sex, mr) %>% 
+  mutate(ratio = male / female) %>% 
+  ungroup() %>% 
+  select(country_code, year, age, ratio) %>% 
+  group_by(country_code, year) %>% 
+  summarise(
+    mean_ratio = mean(ratio), 
+    median_ratio = median(ratio)
+            ) %>% 
+  ggplot(., aes(x = year)) + 
+  geom_line(aes(y = mean_ratio), colour = "red") + 
+  geom_line(aes(y = median_ratio), colour = "blue", linetype = "dashed") + 
+  facet_wrap(~country_code)
+
+
+# Bathtub curves by 25 year intervals 
+
+dta_hmd %>% 
+  filter(year %in% seq(1850, 2000, by = 25)) %>% 
+  filter(age <= 90) %>% 
+  filter(!(country_code %in% c("DEUTNP", "CARTNP", "GBR_NP", "GBRTENW", "NZL_MA", "NZL_NM"))) %>% 
+  mutate(mr = deaths / exposure) %>% 
+  filter(!is.na(mr)) %>% 
+  ggplot(., aes(x = age, y = mr, group = country_code)) + 
+  geom_line(alpha = 0.2) + 
+  facet_grid(sex ~ year) + 
+  scale_y_log10()
+
+
+# Exploration by cohort 
+
+dta_hmd %>% 
+  mutate(birth_year = year - age) %>% 
+  filter(age <= 90) %>% 
+  filter(birth_year %in% c(1875, 1900, 1925, 1950, 1975)) %>% 
+  mutate(birth_year = factor(birth_year)) %>% 
+  filter(country_code == "FRACNP") %>% 
+  mutate(mr = deaths / exposure) %>% 
+  ggplot(., aes(x = age, y = mr, group = birth_year, colour = birth_year)) + 
+  geom_line() +
+  facet_wrap(~sex) + scale_y_log10()
+
+# Comparison between France, Italy, England & Wales
+dta_hmd %>% 
+  mutate(birth_year = year - age) %>% 
+  filter(age <= 90) %>% 
+  filter(birth_year %in% c(1875, 1900, 1925, 1950, 1975)) %>% 
+  mutate(birth_year = factor(birth_year)) %>% 
+  filter(country_code %in% c("FRACNP", "GBRCENW", "ITA")) %>% 
+  mutate(mr = deaths / exposure) %>% 
+  ggplot(., aes(x = age, y = mr, group = country_code, colour = country_code )) + 
+  geom_line() +
+  facet_grid(birth_year~sex) + scale_y_log10()
+
+
+# WW1 cohort effect in France
+
+dta_hmd %>% 
+  mutate(birth_year = year - age) %>% 
+  filter(age <= 90) %>% 
+  filter(birth_year %in% 1916:1922) %>% 
+  mutate(birth_year = factor(birth_year)) %>% 
+  filter(country_code == "FRACNP") %>% 
+  mutate(mr = deaths / exposure) %>% 
+  ggplot(., aes(x = age, y = mr, group = birth_year, colour = birth_year)) + 
+  geom_line() +
+  facet_wrap(~sex) + 
+  scale_y_log10()
+
+
+# Examples using HFD 
+
+# Total births by year 
+dta_hfd %>% 
+  group_by(year) %>% 
+  summarise(total_births = sum(total)) %>% 
+  ggplot(., aes(x = year, y = total_births)) + 
+  geom_line()
+
+
+# Unique countries in each year 
+dta_hfd %>% 
+  group_by(year) %>% 
+  summarise(num_countries = length(unique(code))) %>% 
+  ggplot(. , aes(x = year, y = num_countries)) + 
+  geom_step()
+
+
+# Completed fertility by period in select countries %>% 
+dta_hfd %>%
+
