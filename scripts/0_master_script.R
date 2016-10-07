@@ -29,9 +29,11 @@ pacman::p_load(
   readr, # reads simple text files
   tidyr, dplyr, # piping and data manipulation packages 
   stringr, # work with character strings 
-
+  forcats, # working with categorical variables 
+  
   # AUTOMATING
   purrr, # functional programming package
+  broom, # tidying model outputs 
   
   # GRAPHING
   RColorBrewer, # Better options for colour palettes
@@ -49,305 +51,67 @@ pacman::p_load(
 
 
 
-# 2) Load tidied data 
+# 2) Exploratory data analysis scripts ------------------------------------
+
+# # 2.1  Exploratory data analysis for HMD
+# source("scripts/2_1_hmd_exploratory_data_analysis.R")
+# # 2.2 Exploratory data analysis for HFD 
+# source("scripts/2_2_hfd_exploratory_data_analysis.R")
+
+
+# 3) Automating analyses 
+
+# HMD 
+
+# Fall in infant mortality over time 
 
 dta_hmd <- read_csv("tidied_data/tidied_hmd.csv")
-dta_hfd <- read_csv("tidied_data/tidied_hfd.csv")
 
 
-# Example analyses 
-# infant mortality by year in different countries 
+# Fit against time/sex model without interaction
+dta_hmd %>% 
+  filter(age == 0) %>% 
+  mutate(imr = deaths / exposure, limr = log(imr, 10)) %>% 
+  group_by(country_code) %>% 
+  mutate(years_since_1900 = year - 1900) %>% 
+  nest() %>% 
+  mutate(mdl = map(data, function(x) {lm(limr ~ years_since_1900 + sex, data = x)})) %>%
+  mutate(fit = map_dbl(mdl, AIC)) %>% 
+  mutate(country_code = fct_reorder(country_code, fit)) %>% 
+  ggplot(., aes(x = country_code, y = fit)) + geom_bar(stat = "identity") + coord_flip()
+
 
 dta_hmd %>% 
   filter(age == 0) %>% 
-  group_by(country_code, year) %>% 
-  summarise(deaths = sum(deaths)) %>% 
-  ggplot(., aes(x = year, y = deaths, group = country_code)) + 
-  geom_line()
+  mutate(imr = deaths / exposure, limr = log(imr, 10)) %>% 
+  group_by(country_code) %>% 
+  mutate(years_since_1900 = year - 1900) %>% 
+  nest() %>% 
+  mutate(mdl = map(data, function(x) {lm(limr ~ years_since_1900 + sex, data = x)})) %>%
+  mutate(mdl2 = map(data, function(x) {lm(limr ~ years_since_1900 * sex, data = x)})) %>%
+  mutate(fit = map_dbl(mdl, AIC)) %>% 
+  mutate(fit2 = map_dbl(mdl2, AIC)) %>% 
+  arrange(fit)
 
-# Infant mortality death rate by year in different countries 
 
 dta_hmd %>% 
   filter(age == 0) %>% 
-  group_by(country_code, year) %>% 
-  summarise(
-    deaths = sum(deaths),
-    exposure = sum(exposure)
-    ) %>% 
-  mutate(imr = deaths / exposure ) %>% 
-  ggplot(., aes(x = year, y = imr, group = country_code)) + 
-  geom_line()
-
-# Infant mortality death rate by year in different countries - log scale
-
-dta_hmd %>% 
-  filter(age == 0) %>% 
-  group_by(country_code, year) %>% 
-  summarise(
-    deaths = sum(deaths),
-    exposure = sum(exposure)
-  ) %>% 
-  mutate(imr = deaths / exposure ) %>% 
-  mutate(limr = log(imr, 10)) %>% 
-  ggplot(., aes(x = year, y = limr, group = country_code)) + 
-  geom_line()
-
-dta_hmd %>% 
-  filter(age == 0) %>% 
-  group_by(country_code, year) %>% 
-  summarise(
-    deaths = sum(deaths),
-    exposure = sum(exposure)
-  ) %>% 
-  mutate(imr = deaths / exposure ) %>% 
-  ggplot(., aes(x = year, y = imr, group = country_code)) + 
-  geom_line() + 
-  scale_y_log10()
-
-# Faceted display for above 
-
-dta_hmd %>% 
-  filter(age == 0) %>% 
-  group_by(country_code, year) %>% 
-  summarise(
-    deaths = sum(deaths),
-    exposure = sum(exposure)
-  ) %>% 
-  mutate(imr = deaths / exposure ) %>% 
-  ggplot(., aes(x = year, y = imr)) + 
-  geom_line() + 
-  scale_y_log10() + 
-  facet_wrap(~country_code)
+  mutate(imr = deaths / exposure, limr = log(imr, 10)) %>% 
+  group_by(country_code) %>% 
+  mutate(years_since_1900 = year - 1900) %>% 
+  nest() %>% 
+  mutate(mdl = map(data, function(x) {lm(limr ~ years_since_1900 + sex, data = x)})) %>% 
+  mutate(intercept = map_dbl(mdl, function(x) {x %>% coefficients %>% .[["(Intercept)"]] })) %>% 
+  mutate(trend = map_dbl(mdl, function(x) {x %>% coefficients %>% .[["years_since_1900"]]})) %>% 
+  ggplot(., aes(x = intercept, y = trend)) + 
+  geom_text(aes(label = country_code)) +
+  stat_smooth( method = "lm", se = F)
 
 
-# Infant mortality rate for whole of HMD 
-# n.b. filter out some country codes to avoid double counting
 
-dta_hmd %>% 
-  filter(age == 0) %>% 
-  filter(!(country_code %in% c("DEUTNP", "CARTNP", "GBR_NP", "GBRTENW", "NZL_MA", "NZL_NM"))) %>% 
-  group_by(year) %>% 
-  summarise(
-    deaths = sum(deaths),
-    exposure = sum(exposure)
-  ) %>% 
-  mutate(mr = deaths / exposure ) %>% 
-  ggplot(., aes(x = year, y = mr)) + 
-  geom_line() + 
-  scale_y_log10() 
 
-# male and demale death rates aged 15-30, all HMD, change over time 
 
-dta_hmd %>% 
-  filter(age >=15, age <=30) %>% 
-  filter(!(country_code %in% c("DEUTNP", "CARTNP", "GBR_NP", "GBRTENW", "NZL_MA", "NZL_NM"))) %>% 
-  group_by(year, sex) %>% 
-  summarise(
-    deaths = sum(deaths),
-    exposure = sum(exposure)
-  ) %>% 
-  mutate(mr = deaths / exposure ) %>% 
-  ggplot(., aes(x = year, y = mr, group = sex, linetype = sex)) + 
-  geom_line() + 
-  scale_y_log10() 
-
-#ratio of male to female deaths in this age group 
-
-dta_hmd %>% 
-  filter(age >=15, age <=30) %>% 
-  filter(!(country_code %in% c("DEUTNP", "CARTNP", "GBR_NP", "GBRTENW", "NZL_MA", "NZL_NM"))) %>% 
-  group_by(year, sex) %>% 
-  summarise(
-    deaths = sum(deaths),
-    exposure = sum(exposure)
-  ) %>% 
-  mutate(mr = deaths / exposure ) %>%
-  select(-deaths, -exposure) %>% 
-  spread(sex, mr) %>% 
-  mutate(ratio = male / female) %>% 
-  ggplot(., aes(x = year, y = ratio)) + 
-  geom_line() 
   
 
-# less crude approach to doing the above 
-
-dta_hmd %>% 
-  filter(age >=15, age <=30) %>% 
-  filter(!(country_code %in% c("DEUTNP", "CARTNP", "GBR_NP", "GBRTENW", "NZL_MA", "NZL_NM"))) %>% 
-  mutate(mr = deaths / exposure ) %>%
-  filter(!is.na(mr)) %>% 
-  select(-deaths,-population, -exposure) %>%
-  group_by(country_code, year, age) %>% 
-  spread(sex, mr) %>% 
-  mutate(ratio = male / female) %>% 
-  ungroup() %>% 
-  select(country_code, year, age, ratio) %>% 
-  group_by(country_code, year) %>% 
-  summarise(
-    mean_ratio = mean(ratio), 
-    median_ratio = median(ratio)
-            ) %>% 
-  ggplot(., aes(x = year)) + 
-  geom_line(aes(y = mean_ratio), colour = "red") + 
-  geom_line(aes(y = median_ratio), colour = "blue", linetype = "dashed") + 
-  facet_wrap(~country_code)
-
-
-# Bathtub curves by 25 year intervals 
-
-dta_hmd %>% 
-  filter(year %in% seq(1850, 2000, by = 25)) %>% 
-  filter(age <= 90) %>% 
-  filter(!(country_code %in% c("DEUTNP", "CARTNP", "GBR_NP", "GBRTENW", "NZL_MA", "NZL_NM"))) %>% 
-  mutate(mr = deaths / exposure) %>% 
-  filter(!is.na(mr)) %>% 
-  ggplot(., aes(x = age, y = mr, group = country_code)) + 
-  geom_line(alpha = 0.2) + 
-  facet_grid(sex ~ year) + 
-  scale_y_log10()
-
-
-# Exploration by cohort 
-
-dta_hmd %>% 
-  mutate(birth_year = year - age) %>% 
-  filter(age <= 90) %>% 
-  filter(birth_year %in% c(1875, 1900, 1925, 1950, 1975)) %>% 
-  mutate(birth_year = factor(birth_year)) %>% 
-  filter(country_code == "FRACNP") %>% 
-  mutate(mr = deaths / exposure) %>% 
-  ggplot(., aes(x = age, y = mr, group = birth_year, colour = birth_year)) + 
-  geom_line() +
-  facet_wrap(~sex) + scale_y_log10()
-
-# Comparison between France, Italy, England & Wales
-dta_hmd %>% 
-  mutate(birth_year = year - age) %>% 
-  filter(age <= 90) %>% 
-  filter(birth_year %in% c(1875, 1900, 1925, 1950, 1975)) %>% 
-  mutate(birth_year = factor(birth_year)) %>% 
-  filter(country_code %in% c("FRACNP", "GBRCENW", "ITA")) %>% 
-  mutate(mr = deaths / exposure) %>% 
-  ggplot(., aes(x = age, y = mr, group = country_code, colour = country_code )) + 
-  geom_line() +
-  facet_grid(birth_year~sex) + scale_y_log10()
-
-
-# WW1 cohort effect in France
-
-dta_hmd %>% 
-  mutate(birth_year = year - age) %>% 
-  filter(age <= 90) %>% 
-  filter(birth_year %in% 1916:1922) %>% 
-  mutate(birth_year = factor(birth_year)) %>% 
-  filter(country_code == "FRACNP") %>% 
-  mutate(mr = deaths / exposure) %>% 
-  ggplot(., aes(x = age, y = mr, group = birth_year, colour = birth_year)) + 
-  geom_line() +
-  facet_wrap(~sex) + 
-  scale_y_log10()
-
-
-# Examples using HFD 
-
-# Total births by year 
-dta_hfd %>% 
-  group_by(year) %>% 
-  summarise(total_births = sum(total)) %>% 
-  ggplot(., aes(x = year, y = total_births)) + 
-  geom_line()
-
-
-# Unique countries in each year 
-dta_hfd %>% 
-  group_by(year) %>% 
-  summarise(num_countries = length(unique(code))) %>% 
-  ggplot(. , aes(x = year, y = num_countries)) + 
-  geom_step()
-
-
-# Completed fertility by period in select countries 
-dta_hfd %>%
-  group_by(code, year) %>% 
-  arrange(age) %>% 
-  mutate(asfr = total / exposure) %>% 
-  mutate(cumulative_fert = cumsum(asfr)) %>%
-  filter(age %in% seq(20, 45, by = 5)) %>% 
-  mutate(age = factor(age)) %>% 
-  ggplot(. , aes(x = year, y = cumulative_fert, group = code, colour = code)) +
-  geom_line(alpha = 0.5) +
-  facet_wrap(~age)
-
-# Age at which different (synthetic, period) cohorts reach replacement fertility levels 
-  
-dta_hfd %>%
-  group_by(code, year) %>% 
-  arrange(age) %>% 
-  mutate(asfr = total / exposure) %>% 
-  mutate(cumulative_fert = cumsum(asfr)) %>% 
-  mutate(replacement = cumulative_fert > 2.05) %>% 
-  filter(replacement) %>% 
-  summarise(age_of_replacement = min(age)) %>% 
-  ggplot(., aes(x = year, y = age_of_replacement)) + 
-  geom_line() + 
-  facet_wrap(~ code)
-
-#teenage pregnancy rates over time 
-
-dta_hfd %>% 
-  filter(age < 20) %>% 
-  group_by(code, year) %>% 
-  summarise(total = sum(total), exposure = sum(exposure)) %>% 
-  mutate(teenage_fert = total / exposure) %>% 
-  ggplot(., aes(x = year, y = teenage_fert)) + 
-  geom_line() + 
-  facet_wrap(~code)
-
-
-# Older age pregnancy rates over time 
-
-dta_hfd %>% 
-  filter(age >= 40) %>% 
-  group_by(code, year) %>% 
-  summarise(total = sum(total), exposure = sum(exposure)) %>% 
-  mutate(teenage_fert = total / exposure) %>% 
-  ggplot(., aes(x = year, y = teenage_fert)) + 
-  geom_line() + 
-  facet_wrap(~code)
-
-# Looking at post 1990
-
-dta_hfd %>% 
-  filter(year >= 1990) %>% 
-  filter(age >= 40) %>% 
-  group_by(code, year) %>% 
-  summarise(total = sum(total), exposure = sum(exposure)) %>% 
-  mutate(teenage_fert = total / exposure) %>% 
-  ggplot(., aes(x = year, y = teenage_fert)) + 
-  geom_line() + 
-  facet_wrap(~code)
-
-
-
-# Examples of tables 
-# Ranking of teenage pregnancy rates in 1980 and 2010 
-
-
-dta_hfd %>% 
-  filter(age < 20) %>% 
-  group_by(code, year) %>% 
-  summarise(total = sum(total), exposure = sum(exposure)) %>% 
-  mutate(teenage_fert = total / exposure) %>% 
-  ungroup() %>% 
-  filter(year %in% c(1980, 2000)) %>% 
-  select(code, year, teenage_fert) %>% 
-  spread(year, teenage_fert) %>% 
-  filter(!is.na(`1980`) & !is.na(`2000`)) %>% 
-  arrange(`1980`) %>% 
-  mutate(rank_1980 = rank(`1980`), rank_2000 = rank(`2000`)) %>% 
-  mutate(change_rank = rank_2000 - rank_1980) %>% 
-  View()
-
-
-
+         
 
