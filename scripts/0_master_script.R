@@ -57,61 +57,91 @@ pacman::p_load(
 # source("scripts/2_1_hmd_exploratory_data_analysis.R")
 # # 2.2 Exploratory data analysis for HFD 
 # source("scripts/2_2_hfd_exploratory_data_analysis.R")
+# # 2.3 Statistical analyses for HMD 
+# source("scripts/2_3_hmd_stat_analyses.R")
 
 
-# 3) Automating analyses 
+# 3 Automating the production of graphs 
 
-# HMD 
-
-# Fall in infant mortality over time 
+# Examples with HMD 
 
 dta_hmd <- read_csv("tidied_data/tidied_hmd.csv")
 
-
-# Fit against time/sex model without interaction
-dta_hmd %>% 
-  filter(age == 0) %>% 
-  mutate(imr = deaths / exposure, limr = log(imr, 10)) %>% 
-  group_by(country_code) %>% 
-  mutate(years_since_1900 = year - 1900) %>% 
-  nest() %>% 
-  mutate(mdl = map(data, function(x) {lm(limr ~ years_since_1900 + sex, data = x)})) %>%
-  mutate(fit = map_dbl(mdl, AIC)) %>% 
-  mutate(country_code = fct_reorder(country_code, fit)) %>% 
-  ggplot(., aes(x = country_code, y = fit)) + geom_bar(stat = "identity") + coord_flip()
-
-
-dta_hmd %>% 
-  filter(age == 0) %>% 
-  mutate(imr = deaths / exposure, limr = log(imr, 10)) %>% 
-  group_by(country_code) %>% 
-  mutate(years_since_1900 = year - 1900) %>% 
-  nest() %>% 
-  mutate(mdl = map(data, function(x) {lm(limr ~ years_since_1900 + sex, data = x)})) %>%
-  mutate(mdl2 = map(data, function(x) {lm(limr ~ years_since_1900 * sex, data = x)})) %>%
-  mutate(fit = map_dbl(mdl, AIC)) %>% 
-  mutate(fit2 = map_dbl(mdl2, AIC)) %>% 
-  arrange(fit)
-
-
-dta_hmd %>% 
-  filter(age == 0) %>% 
-  mutate(imr = deaths / exposure, limr = log(imr, 10)) %>% 
-  group_by(country_code) %>% 
-  mutate(years_since_1900 = year - 1900) %>% 
-  nest() %>% 
-  mutate(mdl = map(data, function(x) {lm(limr ~ years_since_1900 + sex, data = x)})) %>% 
-  mutate(intercept = map_dbl(mdl, function(x) {x %>% coefficients %>% .[["(Intercept)"]] })) %>% 
-  mutate(trend = map_dbl(mdl, function(x) {x %>% coefficients %>% .[["years_since_1900"]]})) %>% 
-  ggplot(., aes(x = intercept, y = trend)) + 
-  geom_text(aes(label = country_code)) +
-  stat_smooth( method = "lm", se = F)
-
-
-
-
-
+# mortality at specific ages for different countries 
+plot_fig <- function(df, CODE, XLIM, YLIM){
+  df %>% 
+    filter(age %in% c(0, 5, 20, 40, 60, 80)) %>%
+    mutate(age = factor(age)) %>% 
+    mutate(death_rate = deaths / exposure) %>% 
+    ggplot(., aes(x = year, y = death_rate, group = age, colour = age, shape = age)) + 
+    geom_line() + geom_point() + 
+    facet_wrap(~sex) + 
+    scale_x_continuous(name = "Year", limits = XLIM) +  
+    scale_y_log10(name = "mortality risk", limits = YLIM) + 
+    ggtitle(CODE) -> grph
   
+  grph
+}
+
+
+dta_hmd %>% 
+  filter(age %in% c(0, 5, 20, 40, 60, 80)) %>% 
+  mutate(death_rate = deaths/ exposure) %>% 
+  group_by(country_code) %>% 
+  nest() %>% 
+  mutate(
+    graph = map2(data, country_code, plot_fig, XLIM = c(1900, 2010), YLIM = c(10^-5, 10^-0))
+    ) -> figs_nested
 
          
+pdf("figures/hmd_pdf.pdf", width = 8, height = 8)
+figs_nested %>% .[["graph"]] %>% 
+  walk(print)
+dev.off()
+
+
+# Population structure over time for different countries 
+
+# Want to produce a separate pdf book for each year, and within each pdf book want to set ylim to 
+# max pop size observed 
+
+make_pop_pyramid_book <- function(df, code, POP_INC = 5000, AGE_LIMS = c(0, 90)){
+  max_pop <- max(df$population)
+  max_x_scale <- max_pop %/% POP_INC * POP_INC + POP_INC 
+  
+  make_single_pop_pyramid <- function(df_year, YEAR){
+    df_year %>% 
+      ggplot(., aes(y = age)) + 
+      geom_segment(aes(x = -female, xend = 0, y = age, yend = age), colour = "red") + 
+      geom_segment(aes(x = 0, xend = male, y = age, yend = age), colour = "blue") + 
+      coord_cartesian(xlim = c(-max_x_scale, max_x_scale), ylim = AGE_LIMS) + 
+      labs(x = "Population size", y = "Age", title = YEAR) -> gplt
+    gplt
+  }
+  
+  df %>% 
+    filter(age >= AGE_LIMS[1], age <= AGE_LIMS[2]) %>% 
+    filter(!is.na(year)) %>% 
+    arrange(year) %>% 
+    select(year, age, sex, population) %>% 
+    group_by(year) %>% 
+    spread(sex, population) %>% 
+    nest() %>% 
+    mutate(plt = map2(data, year, safely(make_single_pop_pyramid))) -> df_plots
+  
+  pdf_loc <- paste0("figures/pop_pyramids/", code, ".pdf")
+  pdf(pdf_loc, height = 10, width = 10)
+  df_plots %>% .[["plt"]] %>% walk(safely(print))
+  dev.off()
+  NULL
+}
+#debug(make_pop_pyramid_book)
+  
+dta_hmd %>% 
+  filter(!is.na(year) & !is.na(age) & !is.na(sex)) %>% 
+  group_by(country_code) %>% 
+  nest() %>% 
+  mutate(tmp = walk2(data, country_code, make_pop_pyramid_book))
+
+
 
