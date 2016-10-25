@@ -100,48 +100,6 @@ figs_nested %>% .[["graph"]] %>%
 dev.off()
 
 
-# Population structure over time for different countries 
-
-# Want to produce a separate pdf book for each year, and within each pdf book want to set ylim to 
-# max pop size observed 
-
-make_pop_pyramid_book <- function(df, code, POP_INC = 5000, AGE_LIMS = c(0, 90)){
-  max_pop <- max(df$population)
-  max_x_scale <- max_pop %/% POP_INC * POP_INC + POP_INC 
-  
-  make_single_pop_pyramid <- function(df_year, YEAR){
-    df_year %>% 
-      ggplot(., aes(y = age)) + 
-      geom_segment(aes(x = -female, xend = 0, y = age, yend = age), colour = "red") + 
-      geom_segment(aes(x = 0, xend = male, y = age, yend = age), colour = "blue") + 
-      coord_cartesian(xlim = c(-max_x_scale, max_x_scale), ylim = AGE_LIMS) + 
-      labs(x = "Population size", y = "Age", title = YEAR) -> gplt
-    gplt
-  }
-  
-  df %>% 
-    filter(age >= AGE_LIMS[1], age <= AGE_LIMS[2]) %>% 
-    filter(!is.na(year)) %>% 
-    arrange(year) %>% 
-    select(year, age, sex, population) %>% 
-    group_by(year) %>% 
-    spread(sex, population) %>% 
-    nest() %>% 
-    mutate(plt = map2(data, year, safely(make_single_pop_pyramid))) -> df_plots
-  
-  pdf_loc <- paste0("figures/pop_pyramids/", code, ".pdf")
-  pdf(pdf_loc, height = 10, width = 10)
-  df_plots %>% .[["plt"]] %>% walk(safely(print))
-  dev.off()
-  NULL
-}
-#debug(make_pop_pyramid_book)
-  
-dta_hmd %>% 
-  filter(!is.na(year) & !is.na(age) & !is.na(sex)) %>% 
-  group_by(country_code) %>% 
-  nest() %>% 
-  mutate(tmp = walk2(data, country_code, make_pop_pyramid_book))
 
 
 
