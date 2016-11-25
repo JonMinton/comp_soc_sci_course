@@ -38,11 +38,12 @@ grab_and_reshape <- function(CODE){
   this_deaths %>% reshape_something() %>% rename(deaths = COUNT) -> this_deaths
   
   this_population %>% 
-    full_join(this_exposure, by = c("year", "age", "sex")) %>% 
-    full_join(this_deaths, by = c("year", "age", "sex")) %>% 
+    inner_join(this_exposure, by = c("year", "age", "sex")) %>% 
+    inner_join(this_deaths, by = c("year", "age", "sex")) %>% 
     mutate(country_code = CODE) %>% 
     select(country_code, year, age, sex, deaths, population, exposure) %>% 
-    arrange(year, age, sex)
+    arrange(year, age, sex) %>% 
+    .[complete.cases(.),]
 }
 
 

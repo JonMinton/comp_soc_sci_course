@@ -1,0 +1,248 @@
+---
+title: "A whistlestop introduction to computational social data science in R"
+author: '[Jon Minton](email://jonathan.minton@glasgow.ac.uk), University of Glasgow'
+output:
+  html_notebook: default
+  word_document: default
+---
+
+#Introduction 
+
+Welcome to a short, one day course in computational social data science using R. This course will provide an introduction to a suggested workflow for working with fairly large but 'well behaved' datasets. The course will comprise two extended practical case studies: one exploring the Human Fertility Database (HFD), the other the Human Mortality Database (HMD). Both databases are excellent sources of comparable demographic data, and can be each used to answer many important substantive questions. However they will be approached today not with any specific hypotheses or ideas in mind, but as opportunities for exploration and discovery. The purpose of today's course is to introduce some general patterns and approaches for automating many time consuming data management processes, so that more time can be devoted to thinking about, exploring and testing substantively important ideas and hypotheses. 
+
+___
+**The HFD and HMD**
+
+*Both databases are produced by the Max Planck Institute for Demographic Research (MPIDR) in Berlin, Germany; with the HFD produced in conjunction with the Vienna Institute of Demography (VID) in Austria, and the HMD produced in conjunction with the Department of Demography at the University of Californa, USA.* 
+
+*Further information about both databases, including their methods of construction, and the range of measures, countries, and years covered, are provided in the links below:*
+
+* *[Human Mortality Database](http://www.mortality.org/)*
+* *[Human Fertility Database](http://www.humanfertility.org/cgi-bin/main.php)*
+
+___
+
+When making international comparisons between countries, or comparisons over time, it is common to use simple summary statistics. In the case of population and death data, examples of these summary statistics include measures like period life expectancy, or crude or adjusted death rates for a whole population or sub-group. For fertility data, measures like total fertility rate might be used.
+
+___
+**Demographic Summary Statistics**
+
+*These summary statistics 'stand in place' for a much larger number of variables and values, and can sometimes be less informative than they first appear. For example, a period life expectancy for a country in the most recent year combines mortality risks at many different ages, and is likely to be an underestimate of how long most people alive can expect to live because it implicitly 'assumes' that long-term improvements in age specific mortality risks suddenly freeze.* 
+
+*In the figure in [this short blog entry which I produced for the International Longevity Centre](http://blog.ilcuk.org.uk/2015/11/03/guest-blog-dr-jon-minton-college-of-social-sciences-university-of-glasgow-the-future-of-life-expectancy-shifting-mortlaity-hurdles-and-why-ageing-isnt-what-it-used-to-be/), this is equivalent to assuming that the contour lines, indicating specific mortality risks, which have been drifting rightwards, from younger to older ages, suddenly become fixed, and should be assumed to be vertical in the 'missing' triangle at the top right of each tile. This is clearly an implausible extrapolation given the trends observed, and perhaps one reason why longevity improvements, and therefore pension liabilities, have often been consistently underestimated in rich world nations for many decades.* 
+
+___
+
+The HFD and HMD both allow you to go beyond the summary statistics, to explore the components that go to produce them. Doing this in a way that's enjoyable and productive involves finding ways to reduce the friction involved in the workflow process. This means finding ways of getting R, a computer programming language, to work for you, and in particular to do repetitive and dull work so you don't have to. 
+
+
+
+
+In each of the two extended case studies, one using the HFD and the other using the HMD, three distinct types of process will be demonstrated: 
+
+1. **Initial data tidying and harvesting.** This involves turning 'raw data' into 'tidy data', which in turn involves understanding the structure and syntax of the input data files, and how convert these to a target 'tidy data' form. 
+2. **Exploratory analyses.** This involves developing a familiarity with the data and some of the information it contains. This is an important process for a more general, iterative, and fuzzy process of insight generation, based around the concept of the Research Flywheel, as well as being important both for error checking the results of stage 1, and for prototyping some of the patterns and processes which are then formalised and automated in stage 3. 
+3. **Automated output generation.** This involves realising that many tasks are variations on a theme, knowing what this theme is (i.e. what is  common to the group of tasks), knowing how to describe the general pattern common to the tasks as an algorithm that a computer can follow, and specifying the particular groupings or variations over which the patterns should be applied. 
+
+Both stage 1 and stage 3 will involve making use of the new `purrr` package by Hadley Wickham, based around a functional programming approach to task automation. The `purrr` package is a successor to the `plyr` package, whose split-apply-combine paradigm is described in the paper '[The Split-Apply-Combine Strategy for Data Analysis](https://www.jstatsoft.org/article/view/v040i01/v40i01.pdf)'. A very closely related functional programming strategy is known as the [MapReduce](https://en.wikipedia.org/wiki/MapReduce) programming model, and is a key element of effective big data analysis.  
+
+
+#The general approach: do first, learn later
+
+Given this course is only a day long, but will involve combining various methods, approaches and paradigms that will probably be unfamiliar to many of you, the aim of the course will be to get you to implement recipes I have written for solving each of the three core stages above, using firstly the HFD, and then the HMD. This course will be about learning by doing: first running code that (hopefully!) works, then trying to unpick and unpack the components and elements of the code to understand how they solve the particular challenges involved at that specific stage of the case study, and then generalising from these specific solutions to more generic strategies for working in an efficient way with large amounts of data. Though a deep understanding and mastery of the approaches and how to implement them will not be achieved by the end of the day, the course is intended to provide both a place to start and a motivation to develop your knowledge of this approach further. 
+
+___
+#Mind Tool Number 1: Tidy Data
+
+Data are defined as 'tidy' if they are in a rectangular format and: 
+
+1. Each variable forms a column
+2. Each observation forms a row
+3. Each type of observational unit forms a table
+
+Source: ['Tidy Data'](http://vita.had.co.nz/papers/tidy-data.pdf)
+
+The above definition is fairly opaque, and best understood by considering a number of examples, such as thos provided in the link above. Data which are 'tidy' according to the above definition tend to be easier for many R functions and procedures to work with, and so identifying when data are in a tidy format, and how to get the data to this format, is important for getting the data into a format where it is easy to use in many ways. 
+
+The way I approach tidy data is to think about two fundamentally different types of variable:
+
+* **'Where' Variables:** these 'locate' and uniquely specify the characteristics of something about which some characteristics (such as height and weight) have been measured. 
+* **'What' Variables:** these are the measured characteristics.
+
+The 'Where' variables that need to be stated in order to uniquely identify the observation about which the 'what' variables refer depend on the type of observational unit. 
+
+In the examples used in this course, the 'Where' variables typically include: 
+
+* Country (Represented by a standard code)
+* Sex (HMD only)
+* Age (in years)
+* Year
+
+And the 'What' variables include: 
+
+* Number of live births (HFD)
+* Fertility exposure: Number of women 'at risk' of life birth (HFD)
+* Death counts (HMD)
+* Population counts (HMD)
+* Mortality Exposure, i.e. average number of individuals 'at risk' of death (HMD)
+
+(Note: It is important to consider and appreciate the difference between population counts and population exposure when working with demographic data. Especially if a demographer is reviewing your paper!)
+
+The 'what' variables - Country, Sex, age and Year - uniquely specify the observation for which the other variables refer. 
+
+Further information and discussion about Tidy Data is provided in section 8.2 of the AQMeN Data Management Handbook. 
+____
+
+#Stage 1: Initial Data Harvesting and Tidying
+
+This section will demonstrate how to harvest and 'tidy' data from many separate files in the HFD and HMD. The HFD and HMD have similar, but not identical, data structures and variables, and so require different code to perform this task. In each case the code is written with the same underlying objective and approach in mind. We will start with the HFD, as it presents a slightly simpler data management challenge. 
+
+##Stage 1F: Initial Data Harvesting and Tidying using the HFD
+
+***Exercise 1***
+
+* Look at the contents of the directory `input_data/hfd`. This should contain a large number of separate datasets from the HFD, each stored as a text file with a `.txt` extension.
+* Open up the files `birthRR.txt` and `exposRR.txt` in a text editor (such as in Rstudio), and think about:
+  * What information the two files contain
+  * What information you would need to tell R about the contents and format of the file in order for R (or any other programming environment/statistical package) to be able to read in the data files correctly. 
+
+***Optional Exercise (After the course)***
+
+* We will be using both the `birthRR.txt` and `exposRR.txt` files to calculate age-specific fertility ratios (ASFRs). Look through the file contents to see if this information is already available. If so, load it as well and compare our calculated ASFRs with those provided by the HFD. Also look for files containing data disaggregated by Lexis triangles and consider the benefits and challenges of using these data files instead of the Lexis square based data used here. 
+
+
+***Exercise 2***
+
+* Open the scripts `0_master_script.R` and `1_1_harvest_hfd.R`, both in the `scripts/` subdirectory.
+* Run the code in `0_master_script.R` from the first line to the end of the function call to `pacman::p_load`. (approx line 42)
+    * How can these packages be loaded in base R? What are the advantages and disadvantages of using the `pacman` package to load other packages?
+* Look at the code in `1_1_harvest_hfd.R` and make some guesses about what each of the sections of the code do. 
+    * Is the line `rm(list = ls())` necessary in `1_1_harvest_hfd.R`? Why has it been included? 
+    * What does the `%>%` operator do? From which R package does it originate? How does it fundamentally change the way chained sequences of actions can be specified in R? 
+    * What are the arguments to the function `read.table`? Given what you know about the structure of the data being loaded, why have the arguments been set the way they have?
+    * (Advanced) Why has `read.table` been used rather than an equivalent function within the `readr` package? 
+    * What is the name of the user-defined function in this code? What string manipulation function does it use, and for what purpose?
+* Run the code section by section, paying attention to the new R objects that appear in the environment (visible in the top right pane). 
+    * print, view and glimpse the two input data objects.
+* What does `inner_join` do and how does it know how to join the two data objects together? 
+    * From which package does the `inner_join` function come from? What other types of join operation are available? (Advanced) Compare the different join functions with `merge` in base R. 
+* Identify the output object. What is it called and what is its structure? How does this satisfy the tidy data paradigm? 
+* Complete running this script and identify the new file that has been created. Consider why this script should not be run every time you want to work with the data. 
+
+___
+#Mind Tool Number 2: Piped Code and the `%>%` operator 
+
+The artist Rene Magritte will forever be famous for a picture of a pipe, accompanied by the text 'Ceci n'est pas un pipe'. In late 2014 an R package called `magrittr` was published with one role: to bring 'pipe operators' into the R programming language. Pipe operators exist in a number of other programming languages and environments, in particular Unix, and allow commands to be linked together in intuitive ways. The pipes that pipe operators are based on, however, are not the elegant but harmful tobacco consumption devices favoured by Belgian surrealists and French philosophers, but the boring but indispensible fluid transfer conduits used by plumbers. 
+
+The main pipe operator used is the `%>%` operator. The packages `tidyr`, `dplyr`, `purrr`, and many others all make use of this operator to allow commands to be chained together, from left to right, and from top to bottom. Most of the functions in `tidyr` and `dplyr` are also named after verbs, like `select`, `group_by`, `nest`, and `filter`. The combination of piping and verb-named functions has meant that, very quickly, R code has become much more human friendly. Previously, complex operations either involved lots of temporary objects, or writing code that comprised functions within functions (within functions), meaning they had to be read and interpreted 'inside out'. Piping means that R code can now be written, and so read, from left to right, and from top to bottom, just like a written language. 
+
+For more information about piping using the `%>%` operator, please see [the vignette](https://cran.r-project.org/web/packages/magrittr/vignettes/magrittr.html) on the `magrittr` package, and section five of the AQMeN Data Management handbook, amongst other sources.  
+
+
+____
+
+
+
+###Discussion
+
+Only a limited amount of additional work needed to be done to the two data files harvested in the above example to get them into a tidy data format to work with. The dividends of the fairly formal, automated approach introduced here are much larger in cases where more steps are required to get the data into an easy-to-use 'tidy data' format. 
+
+* *Advanced and optional exercise:* Imagine you were interested in calculating not just the distribution of births at different ages, over time and in different years, but the distribution of first births, second births, third births and so on. Which data file or files could be used to investigate this, and what additional steps (if any) would be required to convert this to a tidy data format? 
+
+
+##Stage 1M: Initial Data Harvesting and Tidying using the HMD
+
+The HMD is a somewhat larger dataset, and has a more complex file structure, than the HFD. The benefits of an automated data tidying and harvesting approach come into their own when working with datasets of this kind of file size and complexity. 
+
+
+***Exercise 3***
+
+* Explore the contents of `input_data/hmd`. How does this compare with the structure and contents of `input_data/hfd`? (Pay special attention to where information pertaining to the same variable for different countries are held in both datasets, and why these differences mean the processes for harvesting and tidying data from the HMD are more complex than for the HFD.)
+    * Within a single country subdirectory, identify the relative location of the data files `Population.txt`, `Exposure_1x1.txt`, and `Deaths_1x1.txt`. Look at the contents of these files, and consider what information you need to tell R about the file contents in order to load the data correctly. 
+    * With the Tidy Data paradigm and target form in mind, consider why it is necessary to include a variable indicating the country within an output dataset. Where can R find the requisite contents for this variable? 
+
+___
+#Mind Tool Number 3: nesting and map functions
+
+One of the newest, trickiest, but also most useful approaches for automating tasks is to use code patterns that include the following: 
+
+```r
+DATAFRAME %>% 
+  group_by(GROUPING_VARIABLE) %>% 
+  nest() %>% 
+  mutate(OBJ_IN_DATAFRAME = map(.x = THING_TO_DO_SOMETHING_DO, .f = WHAT_TO_DO_TO_THAT_THING))
+
+```
+    
+Understanding how this works involves understanding how R manages and defines dataframe objects, essentially as lists of objects, where each object can be of a different type but is of the same length. Typical object types include numbers and characters, but can also include other lists. As dataframes are in effect lists, dataframes can therefore potentially include other dataframes. Though this is an initially confusing and non-standard way of working with dataframes, this feature is exploited in `purrr` to allow the same process to be applied to different objects, but in a 'tidy' way that does not involve, for example, the creation of many separate objects in the R environment. 
+
+The key to doing this is the `map` function in the above. The `.x` argument tells the function where to look for the vector of objects to operate on, and the `.f` object indicates what function to apply to each object in the vector of objects specified in `.x`. By using the `mutate` function, the result of the `map` operation is passed to a new vector, `OBJ_IN_DATAFRAME`, which is added alongside other existing variables in `DATAFRAME`. Depending on the output produced by the function and the other objects in the dataframe, the `nest` and `unnest` function allow for multiple variables stored in separate vectors to be 'packed' into a single dataframe vector, or conversely for the contents of a dataframe vector to be 'unpacked' back into separate vectors. This complex behaviours take some getting used to, but can be an efficient way of performing many types of task which, fundamentally, involve performing the same operation on many distinct objects.
+
+The `map` function will be used in the example below. 
+___
+
+***Exercise 4***
+
+* Open and start to look at the script `1_2_harvest_hmd.R`. (It's more complex than the previous example but don't be afraid!)
+* The 'engine' in this script is a user-defined function, which itself contains two user-defined functions. What is the outer user-defined function called, and what are the two user-defined functions it contains called? How do you think the function works?
+* Run the code from line 1 through to 7. Why is it important to save the output to list.files as a separate object? 
+* Run the code from lines 9 through 46. This is the 'engine' function. What new objects and activities have been performed at this stage? 
+* Run line 46 up to *but excluding** the pipe operator `%>%`. What might be the purpose of creating a dataframe that only contains one variable at this stage? 
+* Given what you know about the `mutate` and `map` functions, what do you expect to be the result of running lines 46 and 47 together, but again excluding the last `%>%` operator? i.e. of running:
+
+```r
+data_frame(code = country_codes) %>% 
+  mutate(df = map(.x = code, .f = grab_and_reshape))
+```
+* How many columns do you expect the dataframe produced by the above to have? What will be their names and classes? 
+* Given your reading of the contents of the 'engine function', what do you expect the contents of the dataframe it returns to contain? What variable names? 
+* How do you expect the `unnest` function to change the number and type of variables in the dataframe produced after running the following?
+```r
+data_frame(code = country_codes) %>% 
+  mutate(df = map(.x = code, .f = grab_and_reshape)) %>% 
+  unnest()
+```
+* Run the complete code block, including the assignment operator to the object all_data
+
+#Appendices
+___ 
+**Data Science Principles** (from the AQMeN Data Management Handbook, pp 8-9)
+
+*Unlike statisticians, data scientists are generalists, concerned with the complete data-to-knowledge value chain:*
+
+1. *The initial generation of quantitative data records;*
+2. *Cleaning, standardising and tidying the data records;*
+3. *Statistical analysis;*
+4. *Evidence-based decision making.* 
+
+*By contrast, statisticians tend to be, or at least to start off as, specialists focused on stage (3) of the above, adept with understanding and applying statistical theories and concepts to particular types of data, prepared as datasets which have been constructed in particular ways. The datasets that most statistics courses provide to students are ‘tidy’ (a term I’ll define more clearly later on), and typically what is taught in such courses is how to analyse the data in this format.* 
+*However, routine and administrative data seldom emerges in a tidy data format, ready to be loaded up and analysed in a statistical package. Instead, the data needs to be prepared and processed in a large number of ways. For example:* 
+
+*	*characters may need to be removed from fields;*
+*	*rows and columns may need to be combined;* 
+*	*tables may need to be joined;* 
+*	*derived variables may need to be generated;* 
+*	*typos need to be identified and fixed;* 
+*	*information (‘metadata’) about the types of variables (logical, categorical, ordinal, or cardinal) may need to be passed to formally specified in particular software*
+*	*et cetera, et cetera, et cetera*
+
+*Although researchers using quantitative data are generally motivated to use such data by stage (4), the production of knowledge and making good evidence-based decisions, a great deal of the time spent doing quantitative can be spent at stage (2). Often, stage (2) does not just take up ‘much’ of the time, but most of the time. When the ‘base metal’ is routinely collected administrative data, the production of tidy data often takes much longer than the statistical analysis.*
+
+*The purpose of this course is to provide a series of tools, both conceptual and practical, which make stage (2), the management and tidying of administrative data, much quicker and easier to do. The reason for going into more depth about the concepts and practice of data management is, paradoxically, because data management is not interesting. The more of your time you spend on data management issues, the less time you have to analyse the data, and to make informed decisions about the data. Conversely, if you have a series of tools and concepts at hand for managing data efficiently, you can pass through this stage more quickly, and spend more of your time at stages (3) and (4).*
+
+
+___
+
+
+
+
+
+___
+
+**Research Friction and the Research Flywheel** (From the AQMeN Data Management Handbook, p 83)
+
+
+*The main reason for learning these tools, patterns and techniques is to greatly cut down the friction involved in exploring and understanding social phenomena through data analysis, and the ultimate reason for this is a belief that the relationship between evidence and theory should be bidirectional: looking at data makes it easier to develop simple (lower ‘middle range’) theories, and developing and testing these theories means looking again at the data, leading to the refinement or replacement of existing theories and the development of new theories, which in turn require further analysis of data, to new theories, to new data analysis, and so on and so on. Although a bunch (to use the in this case useful Americanism) of lower middle range theories may have enough in common to warrant being gathered together to form a more general middle middle range theory, and conversely a middle middle range theory may need to be separated (or ‘operationalised’) to form a series of empirically testable lower middle range theories, the process of generating knowledge and insight from data is often in practice about ensuring that the research flywheel keeps rotating smoothly from data to theory and back again. Effective data management practices and tools exist to allow for smoother running of this flywheel, and through this for better generation of knowledge and insight about social, economic, and health processes.*
+
+___
+
