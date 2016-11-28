@@ -104,3 +104,7 @@ dta_hfd %>%
   mutate(change_rank = rank_2000 - rank_1980) %>% 
   View()
 
+
+# Another exploration: How has the median age increased in different countries?
+
+

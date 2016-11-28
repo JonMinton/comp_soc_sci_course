@@ -130,6 +130,9 @@ This section will demonstrate how to harvest and 'tidy' data from many separate 
 * Complete running this script and identify the new file that has been created. Consider why this script should not be run every time you want to work with the data. 
 
 ___
+
+
+
 #Mind Tool Number 2: Piped Code and the `%>%` operator 
 
 The artist Rene Magritte will forever be famous for a picture of a pipe, accompanied by the text 'Ceci n'est pas un pipe'. In late 2014 an R package called `magrittr` was published with one role: to bring 'pipe operators' into the R programming language. Pipe operators exist in a number of other programming languages and environments, in particular Unix, and allow commands to be linked together in intuitive ways. The pipes that pipe operators are based on, however, are not the elegant but harmful tobacco consumption devices favoured by Belgian surrealists and French philosophers, but the boring but indispensible fluid transfer conduits used by plumbers. 
@@ -139,11 +142,11 @@ The main pipe operator used is the `%>%` operator. The packages `tidyr`, `dplyr`
 For more information about piping using the `%>%` operator, please see [the vignette](https://cran.r-project.org/web/packages/magrittr/vignettes/magrittr.html) on the `magrittr` package, and section five of the AQMeN Data Management handbook, amongst other sources.  
 
 
+
 ____
 
 
-
-###Discussion
+###Discussion for Stage 1F
 
 Only a limited amount of additional work needed to be done to the two data files harvested in the above example to get them into a tidy data format to work with. The dividends of the fairly formal, automated approach introduced here are much larger in cases where more steps are required to get the data into an easy-to-use 'tidy data' format. 
 
@@ -179,7 +182,9 @@ Understanding how this works involves understanding how R manages and defines da
 The key to doing this is the `map` function in the above. The `.x` argument tells the function where to look for the vector of objects to operate on, and the `.f` object indicates what function to apply to each object in the vector of objects specified in `.x`. By using the `mutate` function, the result of the `map` operation is passed to a new vector, `OBJ_IN_DATAFRAME`, which is added alongside other existing variables in `DATAFRAME`. Depending on the output produced by the function and the other objects in the dataframe, the `nest` and `unnest` function allow for multiple variables stored in separate vectors to be 'packed' into a single dataframe vector, or conversely for the contents of a dataframe vector to be 'unpacked' back into separate vectors. This complex behaviours take some getting used to, but can be an efficient way of performing many types of task which, fundamentally, involve performing the same operation on many distinct objects.
 
 The `map` function will be used in the example below. 
+
 ___
+
 
 ***Exercise 4***
 
@@ -202,7 +207,92 @@ data_frame(code = country_codes) %>%
   mutate(df = map(.x = code, .f = grab_and_reshape)) %>% 
   unnest()
 ```
-* Run the complete code block, including the assignment operator to the object all_data
+* Run the complete code block, including the assignment operator to the object `all_data`. 
+    * Consider why you would not want to run the above code block step-by-step, without saving the outputs produced by assigning them to new objects in the environment. How might you go about testing the code without long delays without between runs? (Hint: how might changing `country_codes <- list.files(source_dir)` to something like `country_codes <- list.files(source_dir)[1:3]` help?)
+* Run the last part of the script file which saves the `all_data` object. Identify the location of this file. Consider why the data have been saved as a text file rather than in another format.
+
+
+###Discussion for Stage 1F
+
+Within this section a similar pattern has been used to harvest data from a wide range of separate files, to organise them in a tidy data structure, and then to save them as a text file which can then be used again without having to re-run the script file. 
+
+Now we have prepared tidy datasets from both the HFD and HMD, we can explore the data much more easily. In the exercises below we will start with some bespoke analyses to compare trends over time for different countries.
+
+
+##Stage 2F: Exploratory analyses of the HFD
+
+The script `2_1_hfd_exploratory_data_analysis.R`, in the `scripts/` subdirectory, contains a series of exploratory analyses of the HFD dataset. Although in our case this dataset has already been loaded, as we have just created it, in a typical R session it will not be, and so the script begins by loading the dataset and assigning it to the object `dta_hfd`. After this object has been created, however, note that no further objects are stored in the R environment. 
+
+***Exercise 5***
+
+* Open and start to look at the script `2_1_hfd_exploratory_data_analysis.R`.
+* Load the dataset (2.1.1)
+* Run the complete subsequent chunk of code, (2.1.2; lines 10-14). 
+    * Note the output produced. What, substantively, does this tell you? 
+* Now run this code chunk one line element at a time.
+    * As before, start with the contents of the first line, up to but excluding the pipe operator `%>%`. Note the output displayed from doing this in the console. 
+    * Now re-run to include the pipe operator and the next instruction on the next line, again exluding the last pipe operator.
+    * For this initial code chunk the code should be run as follows:
+```r
+dta_hfd 
+```
+And then
+```r
+dta_hfd %>% 
+  group_by(year) 
+```
+And then 
+```r
+dta_hfd %>% 
+  group_by(year) %>% 
+  summarise(total_births = sum(total)) 
+```
+And then 
+```r
+dta_hfd %>% 
+  group_by(year) %>% 
+  summarise(total_births = sum(total)) %>% 
+  ggplot(., aes(x = year, y = total_births)) 
+```
+And then finally:
+```r
+dta_hfd %>% 
+  group_by(year) %>% 
+  summarise(total_births = sum(total)) %>% 
+  ggplot(., aes(x = year, y = total_births)) +
+  geom_line()
+```
+    * At each step in the above, predict what you think the output will be, and if the output produced is not what you were expecting, think about why this may be the case. 
+* Repeat the above pattern for each of the subsequent code chunks in the script, i.e. 
+    * Run the complete code chunk and reflect on the substantive implications of the results 
+    * *Predict* what you think the first executable element will do
+    * *Compare* your expectations against the actual behaviour by running this element
+    * *Repeat the process, with ever more elements* until you have run the complete code chunk
+* Throughout, make notes of both the behaviour of the code, and code behaviours that are not as you were expecting.     
+
+###Discussion for Stage 2F
+
+The above exercise was provided without specific step-by-step instructions at a line-by-line level, but instead forms an introduction to a general process for both building and testing code chunks for exploratory data analysis using piping. Functions within the `dplyr` and to a lesser extent `tidyr` packages are made use of throughout, which as discussed previously tend to be verbs (`filter`, `select`, and so on). 
+
+Additionally, the graphics package `ggplot2` is made use of to explore and display the outputs produced through the analyses. Within `ggplot2`, the `+` operator is functionally similar to the `%>%` operator, in chaining different instructions together. `ggplot2` is a highly developed and widely used package for both exploratory and publication-quality data graphics, based around the Grammar of Graphics data visualisation approach advocated by the statistician Leland Wilkinson. Many guides and introductions to `ggplot2` exist and are easy to find. For those with some familiarity with `ggplot2` the RStudio Cheat Sheet on [Data Visualisation with ggplot2](https://www.rstudio.com/wp-content/uploads/2015/03/ggplot2-cheatsheet.pdf) is an excellent resource for any office wall. 
+
+
+##Stage 2M: Exploratory analyses of HMD
+
+The basic pattern for running, writing and checking code has been established in the previous section. Some analogous code is presented in the script `2_2_hmd_exploratory_data_analysis.R`. This will look at both death rates and change in population structure in each of the many countries with records in the HMD. 
+
+***Exercise 6***
+
+* Open and start to look at the script `2_2_hmd_exploratory_data_analysis.R`.
+* As before, load the requisite dataset
+* And as before, work through the code chunks, and for each code chunk
+    * Run the code chunk in its entirity
+    * Reflect on the substantive findings from running the chunk
+    * Run the code chunk component by component, first making predictions about the effect you expect the component to have on the output, then comparing your prediction with the actual output. 
+
+
+
+
 
 #Appendices
 ___ 
