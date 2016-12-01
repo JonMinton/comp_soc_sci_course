@@ -10,7 +10,7 @@
 # 1) Load and tidy raw data (once) 
 # 2) Load tidied data 
 # 3) Ad hoc analyses 
-# 4) Automated analyses 
+# 4) Automated analyses & polished analyses/results
 
 
 
@@ -53,51 +53,22 @@ pacman::p_load(
 
 # 2) Exploratory data analysis scripts ------------------------------------
 
-# # 2.1  Exploratory data analysis for HMD
-# source("scripts/2_1_hmd_exploratory_data_analysis.R")
-# # 2.2 Exploratory data analysis for HFD 
-# source("scripts/2_2_hfd_exploratory_data_analysis.R")
-# # 2.3 Statistical analyses for HMD 
-# source("scripts/2_3_hmd_stat_analyses.R")
+# # 2.1  Exploratory data analysis for HFD
+# source("scripts/2_1_hfd_exploratory_data_analysis.R")
+# # 2.2 Exploratory data analysis for HMD 
+# source("scripts/2_2_hmd_exploratory_data_analysis.R")
 
 
-# 3 Automating the production of graphs 
 
-# Examples with HMD 
+# 3 Automating the production of graphs, files, and model outputs
 
-dta_hmd <- read_csv("tidied_data/tidied_hmd.csv")
+# # 3.1 Automated figure and file production using HFD
+#source("scripts/3_1_hfd_data_vis_and_output.R")
 
-# mortality at specific ages for different countries 
-plot_fig <- function(df, CODE, XLIM, YLIM){
-  df %>% 
-    filter(age %in% c(0, 5, 20, 40, 60, 80)) %>%
-    mutate(age = factor(age)) %>% 
-    mutate(death_rate = deaths / exposure) %>% 
-    ggplot(., aes(x = year, y = death_rate, group = age, colour = age, shape = age)) + 
-    geom_line() + geom_point() + 
-    facet_wrap(~sex) + 
-    scale_x_continuous(name = "Year", limits = XLIM) +  
-    scale_y_log10(name = "mortality risk", limits = YLIM) + 
-    ggtitle(CODE) -> grph
-  
-  grph
-}
+# # 3.2 Automated production of model outputs using HMD
+#source("scripts/3_2_hmd_stat_analyses.R")
 
 
-dta_hmd %>% 
-  filter(age %in% c(0, 5, 20, 40, 60, 80)) %>% 
-  mutate(death_rate = deaths/ exposure) %>% 
-  group_by(country_code) %>% 
-  nest() %>% 
-  mutate(
-    graph = map2(data, country_code, plot_fig, XLIM = c(1900, 2010), YLIM = c(10^-5, 10^-0))
-    ) -> figs_nested
-
-         
-pdf("figures/hmd_pdf.pdf", width = 8, height = 8)
-figs_nested %>% .[["graph"]] %>% 
-  walk(print)
-dev.off()
 
 
 
