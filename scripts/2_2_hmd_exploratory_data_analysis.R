@@ -28,6 +28,17 @@ dta_hmd %>%
   ggplot(., aes(x = year, y = imr, group = country_code)) + 
   geom_line(alpha = 0.2) + scale_y_log10()
 
+# Smoothed trends 
+dta_hmd %>% 
+  filter(age == 0) %>% 
+  group_by(country_code, year) %>% 
+  summarise(deaths = sum(deaths), exposure = sum(exposure)) %>%
+  mutate(imr = deaths / exposure) %>% 
+  ggplot(., aes(x = year, y = imr, group = country_code)) + 
+  geom_point(alpha = 0.05) + scale_y_log10() + 
+  stat_smooth(se = F, colour = "black", linetype = "dashed", alpha = 0.2)
+
+
 # Faceted display for above 
 
 dta_hmd %>% 

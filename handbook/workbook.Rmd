@@ -287,12 +287,80 @@ The basic pattern for running, writing and checking code has been established in
 * As before, load the requisite dataset
 * And as before, work through the code chunks, and for each code chunk
     * Run the code chunk in its entirity
-    * Reflect on the substantive findings from running the chunk
-    * Run the code chunk component by component, first making predictions about the effect you expect the component to have on the output, then comparing your prediction with the actual output. 
+    * Reflect on the substantive findings from running the chunk: What (if anything) do you now know about mortality and population structure that you did not know before? 
+    * Run the code chunk component by component: 
+        * First **predict** the output
+        * Then **compare** the predicted with the actual output
+        * Then **reflect** on why the prediction and the actual output are different, and what you need to learn more about to understand the code's behaviour. 
+        
+        
+
+##Stage 2F: Discussion
+
+In the exercise above we have reinforced the general workflow pattern for producing and testing code chunks that was introduced in Exercise 5. We have also gained substantive knowledge about international mortality and population trends. By harvesting and tidying the data from dozens of files within the HMD at the previous stage (1.2 - data harvesting), we have been able to compare data between countries very easily at this stage. Spending more effort and time to produce a functional programming solution to the data harvesting solution has therefore more than paid for itself in terms of much quicker and more pain-free analysis at this data exploration stage. 
 
 
+#Stage 3: Data Vis and file outputing using HFD; and automated modelling using the HMD
+
+In stage 1 functional programming approaches to process automation were an invaluable tool for harvesting data from multiple separate files. At stage 2, the benefits of bringing together data from these many separate files became apparent, as it allowed data to be compared between countries much more quickly than if the data for each file had to be loaded separately. The time taken to manually source and load the data from each of the files would quickly have become prohibitive, and become an impediment to the kind of friction-free curiosity based data exploration which stage 2 demonstrated for both the HFD and HMD databases. 
+
+The kind of exploratory data analysis showcased at stage 2 can be thought of as prototyping. At the the prototyping stage we aren't necessarily interested in the most methodologically robust or aesthetically pleasing models and graphics, but in quickly getting a sense of the data and the various patterns that they contain. 
+
+After exploring the data and prototyping various analyses, we should have a better idea of some of the most important patterns and findings that the data can reveal. We can move from the prototype to the final designs, whether they be more robust statistical models and outputs, or more polished graphics. As we want to be able to provide more resources to other researchers, and to demonstrate we were not simply 'cherry picking' in our choice of data and analysis, it can be helpful to automate the production of supplementary material. In the case of the HFD and HMD we might, for instance, want to write a paper which focuses on one or two countries, but also to make available comparable analyses and results for the other countries as well. 
+
+As in the first stage, process automation using functional programming languages can be very helpful at this stage too. In the two final series of exercises that follow, the HFD data are used to illustrate the process of automating the production of graphics and other file outputs, whereas the HMD data is used to illustrate how functional programming can be used to run and compare many regression models at once.   
 
 
+##Stage 3.1: Data Vis and file outputing using HFD
+
+***Exercise 7***
+
+* The basic pattern for working through the code is exactly as before. For the HFD-based example, focusing on the production of graphics and other file outputs, open and start to explore the script `3_1_hfd_data_vis_and_output.R`, again in the `scripts/` directory. 
+* As before, load the requisite dataset
+* And as before, work through the code chunks, and for each code chunk
+    * Run the code chunk in its entirity
+    * Reflect on the substantive findings from running the chunk: What (if anything) do you now know about mortality and population structure that you did not know before? 
+    * Run the code chunk component by component: 
+        * First **predict** the output
+        * Then **compare** the predicted with the actual output
+        * Then **reflect** on why the prediction and the actual output are different, and what you need to learn more about to understand the code's behaviour. 
+
+
+**Note: The script above will produce a series of additional files in the directories `figures/` and `tidied_data/`. If you have time, please explore the contents of these graphics and text files, and start to think about some of the substantive implications of the outputs produced. Just because we have automated the production of data outputs does not mean we should attempt to automate our intuitive thinking and understanding of what these outputs appear to show.**
+
+##Stage 3.2: Model automation and testing using HMD data
+
+***Exercise 8***
+
+* The basic pattern for working through the code is exactly as before. For the HMD-based example, focusing on how we can use functional programming from `purrr` along with linear regression functions from `stats` (in Base R) and `broom` for tidying model outputs, open and start to explore the script `3_2_hmd_stat_analyses.R`, again in the `scripts/` directory. 
+* As before, load the requisite dataset
+* And as before, work through the code chunks, and for each code chunk
+    * Run the code chunk in its entirity
+    * Reflect on the substantive findings from running the chunk: What (if anything) do you now know about mortality and population structure that you did not know before? 
+    * Run the code chunk component by component: 
+        * First **predict** the output
+        * Then **compare** the predicted with the actual output
+        * Then **reflect** on why the prediction and the actual output are different, and what you need to learn more about to understand the code's behaviour. 
+
+##Stage 3 discussion
+
+The types of process automation demonstrated using both the HFD and HMD datasets showed how processes which otherwise would involve a large amount of time, code and effort, can be greatly reduced in terms of both time and effort. Although the `nest` and `map` functions, and the functional programming paradigm they operationalise, are likely unfamiliar approaches, and to start with may involve some head scratching and mental gymnastics, they are neat and effective ways to handle a large number of processes and operations that involve performing 'variations on a theme'. 
+
+#Conclusion: where to go next
+
+This course has provided a whistlestop tour through a complete data analysis workflow, employing and combining range of linked techniques and ideas in order to get from raw data, to substantive knowledge and insight in an efficient way. Although you may not understand **how** some of the code examples work at this stage, through repeating the same steps through each of the exercises you hopefully now have enough familiarity with the general patterns and habits that I recommend for developing code within a broader framework and philosophy of data analysis. This broader habit and workflow, together with an enthusiasm to learn and practice more, is the main take-home message from today's workshop.
+
+Repeated use of 'tidyverse' packages, including `tidyr`, `dplyr`, `broom` and `purrr`, along with more formal training in functional programming, will make you more attuned to identifying broader patterns for writing and developing code as part of efficient data analysis workflows. An excellent introduction to functional programming, hosted by not just one but two Wickham siblings, is provided by DataCamp in the course named [Writing Functions in R](https://www.datacamp.com/courses/writing-functions-in-r). Even if you have used R for many years I would recommend this course without reservation. 
+
+For a more general and comprehensive introduction to efficient workflows in R, I would recommend the AQMEN [Social Data Science handbook](https://github.com/JonMinton/aqmen_data_science/raw/master/documents/Data%20Management%20Handbook.docx), which can be downloaded along with course material by clicking on the button marked `Clone or download` [here](https://github.com/JonMinton/aqmen_data_science/). **(N.B. I have recently been commissioned to write a methods book based on this material, so your feedback and suggestions would be very welcome.)**
+
+Garrett Grolemund and Hadley Wickham's upcoming book, [R for Data Science](http://r4ds.had.co.nz/), is currently being written within RStudio using [bookdown](https://bookdown.org/yihui/bookdown/). Draft versions of this book are frequently updated and made available online. 
+
+RStudio has become the standard environment through which R is run, and with good reason. Amongst other free services provided by RStudio are [a series of webinars](https://www.rstudio.com/resources/webinars/?mkt_tok=eyJpIjoiWkdObE1ESm1PREpsWXpSaCIsInQiOiJjR200RUpzc2pvZXJVdFYxNEN2R1NkbmF3d2c1bHJON1hycVwvMTNOazkrMGc2ZGJRZXh6VURaUDMwdlIyRGpyT081TFpoYlpnRnRaK1ZPaVcrQjNSSVhMUERodGJRNW1PRkhhTXB4RnBWUzg9In0%3D) covering a wide range of packages and approaches. 
+
+I hope you have enjoyed this course and it will mark the start of a journey through social data science that is long, productive, and most of all fun!
+
+**Bon Voyage!** 
 
 #Appendices
 ___ 

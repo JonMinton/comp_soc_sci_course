@@ -4,7 +4,6 @@
 dta_hfd <- read_csv("tidied_data/tidied_hfd.csv")
 
 
-
 # 2.1.2 - Calculate total births by year
 
 dta_hfd %>% 
@@ -214,6 +213,30 @@ dta_hfd %>%
   facet_wrap(~ code) + 
   scale_colour_gradient(low = "white", high = "black") + 
   labs(x = "Mean age of childbearing (years)", y = "Variance of age of childbearing (years squared)")
+
+
+# We could also produce an even more complex visualisation which represents more dimensions of the data 
+
+dta_hfd %>% 
+  mutate(fert = total / exposure) %>% 
+  group_by(code, year) %>% 
+  mutate(
+    mn_age = sum((age + 0.5) * fert) / sum(fert), 
+    df_mn_age_sq = (age - mn_age)^2
+    
+  ) %>% 
+  summarise(
+    total_fert = sum(fert),
+    mn_age = mn_age[1], 
+    var_age = sum(df_mn_age_sq * fert) / total_fert) %>% 
+  ungroup() %>% 
+  arrange(code, year) %>% 
+  ggplot(., aes(x = mn_age, y = var_age, alpha = year, colour = total_fert)) + 
+  geom_point(stroke = 0) + 
+  facet_wrap(~ code) + 
+  scale_colour_distiller(palette = "Spectral") + 
+  labs(x = "Mean age of childbearing (years)", y = "Variance of age of childbearing (years squared)")
+
 
 # We might be more interested only in trends after 1970, as fertility fell in many countries in the 1960s
 # due, for example, to more easily available and effective contraception
