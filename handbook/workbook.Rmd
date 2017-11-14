@@ -1,5 +1,5 @@
 ---
-title: "A whistlestop introduction to computational social data science in R"
+title: "Managing Demographic Big Data Analysis in R"
 author: '[Jon Minton](email://jonathan.minton@glasgow.ac.uk), University of Glasgow'
 output:
   html_notebook: default
@@ -8,7 +8,7 @@ output:
 
 #Introduction 
 
-Welcome to a one day course on computational social science in R. This course will provide some examples of automating processes involving (fairly) large amounts of data, which we’ll run and discuss over the course of the day. 
+Welcome to a one day course on managing demographic big data in R. This course will provide some examples of automating processes involving (fairly) large amounts of data, which we’ll run and discuss over the course of the day. 
 
 The data we will use come from the Human Fertility Database (HFD) and the Human Mortality Database (HMD), both of which are run by the Max Planck Institute for Demographic Research along with other partners. As the names suggest, they both comprise demographic data, which I think of as ‘old big data’. The HFD is around 0.2Gb in size; and the HMD around 1.3Gb. Compared with some of the data sources currently being generated and analysed – such as those which are generated when customers use a website, or when people use hardware and apps to track their activity on a second-by-second basis - these are tiny amounts of data; they are also much less ‘messy’, and require less data tidying and processing, than such forms of data. However, they are large by the standards of much of the academic social sciences, freely available, and more importantly substantively interesting and important. I therefore hope some of the analyses and results presented here will interest, engage and surprise, even though they are being used pedagogically in this case, to introduce a broader pattern and approach to data process automation. 
 
